@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Mindseeker</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="game-container">
+    <h1>🧠 Mindseeker</h1>
+    <p class="subtitle">Click the thoughts. Avoid the echoes.</p>
+    <div id="board"></div>
+    <div id="status"></div>
+    <button onclick="restartGame()">Restart</button>
+  </div>
+  <script src="game.js"></script>
+</body>
+  <style>
+    body {
+  background: #111;
+  color: #eee;
+  font-family: 'Courier New', monospace;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  margin: 0;
+}
+
+.game-container {
+  text-align: center;
+  padding: 20px;
+}
+
+h1 {
+  font-size: 2.5rem;
+  color: #f0c;
+}
+
+.subtitle {
+  font-size: 1rem;
+  margin-bottom: 20px;
+  color: #aaa;
+}
+
+#board {
+  display: grid;
+  grid-template-columns: repeat(8, 40px);
+  grid-gap: 4px;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+.cell {
+  width: 40px;
+  height: 40px;
+  background: #222;
+  border: 1px solid #444;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.cell.revealed {
+  background: #333;
+  color: #0f0;
+  cursor: default;
+}
+
+.cell.bomb {
+  background: #900;
+  color: #fff;
+}
+
+#status {
+  font-size: 1.2rem;
+  margin: 10px;
+  color: #ccc;
+}
+
+button {
+  background: #333;
+  color: #fff;
+  padding: 8px 16px;
+  border: none;
+  font-size: 1rem;
+  cursor: pointer;
+  border-radius: 5px;
+}
+
+button:hover {
+  background: #555;
+}
+
+    </style>
+  <script>
+    const board = document.getElementById('board');
+const statusDisplay = document.getElementById('status');
+const width = 8;
+const height = 8;
+const bombCount = 10;
+let cells = [];
+let gameOver = false;
+
+function createBoard() {
+  board.innerHTML = '';
+  cells = [];
+  gameOver = false;
+  statusDisplay.textContent = '';
+
+  let bombArray = Array(bombCount).fill('bomb');
+  let safeArray = Array(width * height - bombCount).fill('safe');
+  let gameArray = bombArray.concat(safeArray).sort(() => Math.random() - 0.5);
+
+  board.style.gridTemplateColumns = `repeat(${width}, 40px)`;
+
+  for (let i = 0; i < width * height; i++) {
+    const cell = document.createElement('div');
+    cell.classList.add('cell');
+    cell.setAttribute('data-id', i);
+    cell.setAttribute('data-type', gameArray[i]);
+    cell.addEventListener('click', clickCell);
+    board.appendChild(cell);
+    cells.push(cell);
+  }
+}
+
+function clickCell(e) {
+  const cell = e.target;
+  const id = parseInt(cell.getAttribute('data-id'));
+
+  if (gameOver || cell.classList.contains('revealed')) return;
+
+  const type = cell.getAttribute('data-type');
+  cell.classList.add('revealed');
+
+  if (type === 'bomb') {
+    cell.classList.add('bomb');
+    cell.textContent = '☠';
+    gameOver = true;
+    revealAllBombs();
+    statusDisplay.textContent = '🩸 Echo Detonated. Your mind breaks.';
+  } else {
+    const count = countAdjacentBombs(id);
+    if (count > 0) {
+      cell.textContent = count;
+    } else {
+      revealAdjacentSafe(id);
+    }
+    checkWin();
+  }
+}
+
+function countAdjacentBombs(id) {
+  const neighbors = getNeighbors(id);
+  return neighbors.filter(i => cells[i].getAttribute('data-type') === 'bomb').length;
+}
+
+function revealAdjacentSafe(id) {
+  const neighbors = getNeighbors(id);
+  neighbors.forEach(i => {
+    const neighbor = cells[i];
+    if (!neighbor.classList.contains('revealed') && neighbor.getAttribute('data-type') !== 'bomb') {
+      neighbor.classList.add('revealed');
+      const count = countAdjacentBombs(i);
+      if (count > 0) {
+        neighbor.textContent = count;
+      } else {
+        revealAdjacentSafe(i);
+      }
+    }
+  });
+}
+
+function getNeighbors(id) {
+  const x = id % width;
+  const y = Math.floor(id / width);
+  const coords = [
+    [x-1, y-1], [x, y-1], [x+1, y-1],
+    [x-1, y],             [x+1, y],
+    [x-1, y+1], [x, y+1], [x+1, y+1]
+  ];
+  return coords
+    .filter(([cx, cy]) => cx >= 0 && cx < width && cy >= 0 && cy < height)
+    .map(([cx, cy]) => cy * width + cx);
+}
+
+function revealAllBombs() {
+  cells.forEach(cell => {
+    if (cell.getAttribute('data-type') === 'bomb') {
+      cell.classList.add('revealed', 'bomb');
+      cell.textContent = '☠';
+    }
+  });
+}
+
+function checkWin() {
+  const unrevealed = cells.filter(c => !c.classList.contains('revealed'));
+  if (unrevealed.length === bombCount) {
+    gameOver = true;
+    statusDisplay.textContent = '🧘 You found all truths and avoided the echoes. Mind: Intact.';
+  }
+}
+
+function restartGame() {
+  createBoard();
+}
+
+createBoard();
+
+  </script>
+</html>
